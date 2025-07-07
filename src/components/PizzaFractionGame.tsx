@@ -27,6 +27,7 @@ export default function PizzaFractionGame() {
   const [score, setScore] = useState(0)
   const [totalQuestions, setTotalQuestions] = useState(0)
   const [feedback, setFeedback] = useState<string>('')
+  const [detailedExplanation, setDetailedExplanation] = useState<string>('')
   const [showAnswer, setShowAnswer] = useState(false)
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy')
   const [gameStarted, setGameStarted] = useState(false)
@@ -90,6 +91,83 @@ export default function PizzaFractionGame() {
     const s1 = simplifyFraction(f1)
     const s2 = simplifyFraction(f2)
     return s1.numerator === s2.numerator && s1.denominator === s2.denominator
+  }
+
+  // Generate detailed explanation
+  const generateExplanation = (question: Question): string => {
+    const { fraction1, fraction2, operation, answer } = question
+    
+    let explanation = `🧮 **Stap-voor-stap uitleg:**\n\n`
+    
+    // Step 1: Show the problem
+    explanation += `**Stap 1:** We hebben ${fraction1.numerator}/${fraction1.denominator} ${operation === '+' ? 'plus' : 'min'} ${fraction2.numerator}/${fraction2.denominator}\n\n`
+    
+    // Step 2: Check if denominators are the same
+    if (fraction1.denominator === fraction2.denominator) {
+      explanation += `**Stap 2:** De noemers zijn hetzelfde (${fraction1.denominator}), dus we kunnen direct rekenen!\n\n`
+      
+      if (operation === '+') {
+        explanation += `**Stap 3:** ${fraction1.numerator}/${fraction1.denominator} + ${fraction2.numerator}/${fraction2.denominator} = (${fraction1.numerator} + ${fraction2.numerator})/${fraction1.denominator} = ${fraction1.numerator + fraction2.numerator}/${fraction1.denominator}\n\n`
+      } else {
+        explanation += `**Stap 3:** ${fraction1.numerator}/${fraction1.denominator} - ${fraction2.numerator}/${fraction2.denominator} = (${fraction1.numerator} - ${fraction2.numerator})/${fraction1.denominator} = ${fraction1.numerator - fraction2.numerator}/${fraction1.denominator}\n\n`
+      }
+      
+      const beforeSimplify = operation === '+' 
+        ? { numerator: fraction1.numerator + fraction2.numerator, denominator: fraction1.denominator }
+        : { numerator: fraction1.numerator - fraction2.numerator, denominator: fraction1.denominator }
+      
+      // Check if simplification is needed
+      const simplified = simplifyFraction(beforeSimplify)
+      if (simplified.numerator !== beforeSimplify.numerator || simplified.denominator !== beforeSimplify.denominator) {
+        const divisor = gcd(Math.abs(beforeSimplify.numerator), beforeSimplify.denominator)
+        explanation += `**Stap 4:** We kunnen vereenvoudigen! ${beforeSimplify.numerator}/${beforeSimplify.denominator} ÷ ${divisor} = ${simplified.numerator}/${simplified.denominator}\n\n`
+        explanation += `💡 **Waarom vereenvoudigen?** Beide getallen (${beforeSimplify.numerator} en ${beforeSimplify.denominator}) zijn deelbaar door ${divisor}.\n\n`
+      }
+      
+    } else {
+      // Different denominators - need common denominator
+      const commonDenom = fraction1.denominator * fraction2.denominator
+      const newNum1 = fraction1.numerator * fraction2.denominator
+      const newNum2 = fraction2.numerator * fraction1.denominator
+      
+      explanation += `**Stap 2:** De noemers zijn verschillend (${fraction1.denominator} en ${fraction2.denominator}), dus we maken ze gelijk!\n\n`
+      explanation += `**Stap 3:** Gemeenschappelijke noemer = ${fraction1.denominator} × ${fraction2.denominator} = ${commonDenom}\n\n`
+      explanation += `**Stap 4:** Omrekenen:\n`
+      explanation += `• ${fraction1.numerator}/${fraction1.denominator} = ${fraction1.numerator} × ${fraction2.denominator}/${fraction1.denominator} × ${fraction2.denominator} = ${newNum1}/${commonDenom}\n`
+      explanation += `• ${fraction2.numerator}/${fraction2.denominator} = ${fraction2.numerator} × ${fraction1.denominator}/${fraction2.denominator} × ${fraction1.denominator} = ${newNum2}/${commonDenom}\n\n`
+      
+      if (operation === '+') {
+        explanation += `**Stap 5:** Nu kunnen we optellen: ${newNum1}/${commonDenom} + ${newNum2}/${commonDenom} = ${newNum1 + newNum2}/${commonDenom}\n\n`
+      } else {
+        explanation += `**Stap 5:** Nu kunnen we aftrekken: ${newNum1}/${commonDenom} - ${newNum2}/${commonDenom} = ${newNum1 - newNum2}/${commonDenom}\n\n`
+      }
+      
+      const beforeSimplify = operation === '+' 
+        ? { numerator: newNum1 + newNum2, denominator: commonDenom }
+        : { numerator: newNum1 - newNum2, denominator: commonDenom }
+      
+      // Check if simplification is needed
+      const simplified = simplifyFraction(beforeSimplify)
+      if (simplified.numerator !== beforeSimplify.numerator || simplified.denominator !== beforeSimplify.denominator) {
+        const divisor = gcd(Math.abs(beforeSimplify.numerator), beforeSimplify.denominator)
+        explanation += `**Stap 6:** Vereenvoudigen: ${beforeSimplify.numerator}/${beforeSimplify.denominator} ÷ ${divisor} = ${simplified.numerator}/${simplified.denominator}\n\n`
+        explanation += `💡 **Vereenvoudigen betekent:** Beide getallen delen door hun grootste gemeenschappelijke deler (${divisor}).\n\n`
+      }
+    }
+    
+    explanation += `🎯 **Eindantwoord:** ${answer.numerator}/${answer.denominator}\n\n`
+    
+    // Add pizza context
+    explanation += `🍕 **In pizza-taal:** `
+    if (answer.denominator === 1) {
+      explanation += `Je hebt ${answer.numerator} hele pizza${answer.numerator > 1 ? 's' : ''}!`
+    } else if (answer.numerator === 1) {
+      explanation += `Je hebt 1 stukje van een pizza die in ${answer.denominator} stukken is verdeeld.`
+    } else {
+      explanation += `Je hebt ${answer.numerator} stukjes van pizza's die elk in ${answer.denominator} stukken zijn verdeeld.`
+    }
+    
+    return explanation
   }
 
   // Generate a new question
@@ -166,6 +244,7 @@ export default function PizzaFractionGame() {
     setCurrentQuestion(question)
     setUserAnswer({ numerator: 0, denominator: 1 })
     setFeedback('')
+    setDetailedExplanation('')
     setShowAnswer(false)
   }
 
@@ -175,13 +254,16 @@ export default function PizzaFractionGame() {
 
     const simplified = simplifyFraction(userAnswer)
     const correctAnswer = currentQuestion.answer
+    const explanation = generateExplanation(currentQuestion)
 
     if (simplified.numerator === correctAnswer.numerator && 
         simplified.denominator === correctAnswer.denominator) {
       setScore(score + 1)
       setFeedback('🎉 Perfetto! Ottima risposta!')
+      setDetailedExplanation(`✅ **Helemaal goed!**\n\n${explanation}`)
     } else {
-      setFeedback(`❌ Non è corretto. La risposta giusta è ${correctAnswer.numerator}/${correctAnswer.denominator}`)
+      setFeedback(`❌ Non è corretto. De juiste uitleg:`)
+      setDetailedExplanation(explanation)
     }
     
     setTotalQuestions(totalQuestions + 1)
@@ -302,6 +384,51 @@ export default function PizzaFractionGame() {
         </svg>
       )
     }
+  }
+
+  // Format explanation text with markdown-like styling
+  const formatExplanation = (text: string) => {
+    return text.split('\n').map((line, index) => {
+      if (line.startsWith('**') && line.endsWith('**')) {
+        return (
+          <div key={index} className="font-bold text-blue-800 mt-3 mb-1">
+            {line.replace(/\*\*/g, '')}
+          </div>
+        )
+      } else if (line.startsWith('💡')) {
+        return (
+          <div key={index} className="bg-yellow-100 border-l-4 border-yellow-500 p-2 my-2 text-yellow-800 italic">
+            {line}
+          </div>
+        )
+      } else if (line.startsWith('🎯')) {
+        return (
+          <div key={index} className="bg-green-100 border-l-4 border-green-500 p-2 my-2 text-green-800 font-semibold">
+            {line}
+          </div>
+        )
+      } else if (line.startsWith('🍕')) {
+        return (
+          <div key={index} className="bg-red-100 border-l-4 border-red-500 p-2 my-2 text-red-800">
+            {line}
+          </div>
+        )
+      } else if (line.startsWith('✅')) {
+        return (
+          <div key={index} className="bg-green-50 border border-green-200 rounded p-2 my-2 text-green-800 font-semibold">
+            {line}
+          </div>
+        )
+      } else if (line.trim() === '') {
+        return <div key={index} className="h-2"></div>
+      } else {
+        return (
+          <div key={index} className="text-gray-700 leading-relaxed">
+            {line}
+          </div>
+        )
+      }
+    })
   }
 
   if (!gameStarted) {
@@ -527,13 +654,26 @@ export default function PizzaFractionGame() {
           }`}>
             <div className="text-lg font-semibold">{feedback}</div>
             {showAnswer && (
-              <div className="mt-2">
+              <div className="mt-4">
                 <PizzaVisualization 
                   fraction={currentQuestion.answer} 
                   label="Correct Antwoord" 
                 />
               </div>
             )}
+          </div>
+        )}
+
+        {/* Detailed Explanation */}
+        {detailedExplanation && showAnswer && (
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-4">
+            <div className="text-blue-800 font-bold text-lg mb-4 flex items-center">
+              <span className="text-2xl mr-2">🧮</span>
+              Uitleg van Chef Mario
+            </div>
+            <div className="text-left space-y-2">
+              {formatExplanation(detailedExplanation)}
+            </div>
           </div>
         )}
 

@@ -23,11 +23,12 @@ interface PizzaSlice {
 
 export default function PizzaFractionGame() {
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null)
-  const [userAnswer, setUserAnswer] = useState<Fraction>({ numerator: 0, denominator: 1 })
+  const [userNumerator, setUserNumerator] = useState<string>('')
+  const [userDenominator, setUserDenominator] = useState<string>('')
   const [score, setScore] = useState(0)
   const [totalQuestions, setTotalQuestions] = useState(0)
   const [feedback, setFeedback] = useState<string>('')
-  const [detailedExplanation, setDetailedExplanation] = useState<string>('')
+  const [simplificationExplanation, setSimplificationExplanation] = useState<string>('')
   const [showAnswer, setShowAnswer] = useState(false)
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy')
   const [gameStarted, setGameStarted] = useState(false)
@@ -93,81 +94,41 @@ export default function PizzaFractionGame() {
     return s1.numerator === s2.numerator && s1.denominator === s2.denominator
   }
 
-  // Generate detailed explanation
-  const generateExplanation = (question: Question): string => {
+  // Generate simplification explanation (only when needed)
+  const generateSimplificationExplanation = (question: Question, userAnswer: Fraction): string => {
     const { fraction1, fraction2, operation, answer } = question
     
-    let explanation = `🧮 **Stap-voor-stap uitleg:**\n\n`
-    
-    // Step 1: Show the problem
-    explanation += `**Stap 1:** We hebben ${fraction1.numerator}/${fraction1.denominator} ${operation === '+' ? 'plus' : 'min'} ${fraction2.numerator}/${fraction2.denominator}\n\n`
-    
-    // Step 2: Check if denominators are the same
+    // Calculate the unsimplified result
+    let unsimplifiedResult: Fraction
     if (fraction1.denominator === fraction2.denominator) {
-      explanation += `**Stap 2:** De noemers zijn hetzelfde (${fraction1.denominator}), dus we kunnen direct rekenen!\n\n`
-      
+      // Same denominators
       if (operation === '+') {
-        explanation += `**Stap 3:** ${fraction1.numerator}/${fraction1.denominator} + ${fraction2.numerator}/${fraction2.denominator} = (${fraction1.numerator} + ${fraction2.numerator})/${fraction1.denominator} = ${fraction1.numerator + fraction2.numerator}/${fraction1.denominator}\n\n`
+        unsimplifiedResult = { numerator: fraction1.numerator + fraction2.numerator, denominator: fraction1.denominator }
       } else {
-        explanation += `**Stap 3:** ${fraction1.numerator}/${fraction1.denominator} - ${fraction2.numerator}/${fraction2.denominator} = (${fraction1.numerator} - ${fraction2.numerator})/${fraction1.denominator} = ${fraction1.numerator - fraction2.numerator}/${fraction1.denominator}\n\n`
+        unsimplifiedResult = { numerator: fraction1.numerator - fraction2.numerator, denominator: fraction1.denominator }
       }
-      
-      const beforeSimplify = operation === '+' 
-        ? { numerator: fraction1.numerator + fraction2.numerator, denominator: fraction1.denominator }
-        : { numerator: fraction1.numerator - fraction2.numerator, denominator: fraction1.denominator }
-      
-      // Check if simplification is needed
-      const simplified = simplifyFraction(beforeSimplify)
-      if (simplified.numerator !== beforeSimplify.numerator || simplified.denominator !== beforeSimplify.denominator) {
-        const divisor = gcd(Math.abs(beforeSimplify.numerator), beforeSimplify.denominator)
-        explanation += `**Stap 4:** We kunnen vereenvoudigen! ${beforeSimplify.numerator}/${beforeSimplify.denominator} ÷ ${divisor} = ${simplified.numerator}/${simplified.denominator}\n\n`
-        explanation += `💡 **Waarom vereenvoudigen?** Beide getallen (${beforeSimplify.numerator} en ${beforeSimplify.denominator}) zijn deelbaar door ${divisor}.\n\n`
-      }
-      
     } else {
-      // Different denominators - need common denominator
+      // Different denominators
       const commonDenom = fraction1.denominator * fraction2.denominator
       const newNum1 = fraction1.numerator * fraction2.denominator
       const newNum2 = fraction2.numerator * fraction1.denominator
       
-      explanation += `**Stap 2:** De noemers zijn verschillend (${fraction1.denominator} en ${fraction2.denominator}), dus we maken ze gelijk!\n\n`
-      explanation += `**Stap 3:** Gemeenschappelijke noemer = ${fraction1.denominator} × ${fraction2.denominator} = ${commonDenom}\n\n`
-      explanation += `**Stap 4:** Omrekenen:\n`
-      explanation += `• ${fraction1.numerator}/${fraction1.denominator} = ${fraction1.numerator} × ${fraction2.denominator}/${fraction1.denominator} × ${fraction2.denominator} = ${newNum1}/${commonDenom}\n`
-      explanation += `• ${fraction2.numerator}/${fraction2.denominator} = ${fraction2.numerator} × ${fraction1.denominator}/${fraction2.denominator} × ${fraction1.denominator} = ${newNum2}/${commonDenom}\n\n`
-      
       if (operation === '+') {
-        explanation += `**Stap 5:** Nu kunnen we optellen: ${newNum1}/${commonDenom} + ${newNum2}/${commonDenom} = ${newNum1 + newNum2}/${commonDenom}\n\n`
+        unsimplifiedResult = { numerator: newNum1 + newNum2, denominator: commonDenom }
       } else {
-        explanation += `**Stap 5:** Nu kunnen we aftrekken: ${newNum1}/${commonDenom} - ${newNum2}/${commonDenom} = ${newNum1 - newNum2}/${commonDenom}\n\n`
-      }
-      
-      const beforeSimplify = operation === '+' 
-        ? { numerator: newNum1 + newNum2, denominator: commonDenom }
-        : { numerator: newNum1 - newNum2, denominator: commonDenom }
-      
-      // Check if simplification is needed
-      const simplified = simplifyFraction(beforeSimplify)
-      if (simplified.numerator !== beforeSimplify.numerator || simplified.denominator !== beforeSimplify.denominator) {
-        const divisor = gcd(Math.abs(beforeSimplify.numerator), beforeSimplify.denominator)
-        explanation += `**Stap 6:** Vereenvoudigen: ${beforeSimplify.numerator}/${beforeSimplify.denominator} ÷ ${divisor} = ${simplified.numerator}/${simplified.denominator}\n\n`
-        explanation += `💡 **Vereenvoudigen betekent:** Beide getallen delen door hun grootste gemeenschappelijke deler (${divisor}).\n\n`
+        unsimplifiedResult = { numerator: newNum1 - newNum2, denominator: commonDenom }
       }
     }
     
-    explanation += `🎯 **Eindantwoord:** ${answer.numerator}/${answer.denominator}\n\n`
+    // Check if simplification happened
+    const simplified = simplifyFraction(unsimplifiedResult)
     
-    // Add pizza context
-    explanation += `🍕 **In pizza-taal:** `
-    if (answer.denominator === 1) {
-      explanation += `Je hebt ${answer.numerator} hele pizza${answer.numerator > 1 ? 's' : ''}!`
-    } else if (answer.numerator === 1) {
-      explanation += `Je hebt 1 stukje van een pizza die in ${answer.denominator} stukken is verdeeld.`
-    } else {
-      explanation += `Je hebt ${answer.numerator} stukjes van pizza's die elk in ${answer.denominator} stukken zijn verdeeld.`
+    if (simplified.numerator !== unsimplifiedResult.numerator || simplified.denominator !== unsimplifiedResult.denominator) {
+      const divisor = gcd(Math.abs(unsimplifiedResult.numerator), unsimplifiedResult.denominator)
+      return `✨ **Vereenvoudigd:** ${unsimplifiedResult.numerator}/${unsimplifiedResult.denominator} werd ${simplified.numerator}/${simplified.denominator} (gedeeld door ${divisor})`
     }
     
-    return explanation
+    return ''
   }
 
   // Generate a new question
@@ -242,9 +203,10 @@ export default function PizzaFractionGame() {
   const startNewQuestion = () => {
     const question = generateQuestion()
     setCurrentQuestion(question)
-    setUserAnswer({ numerator: 0, denominator: 1 })
+    setUserNumerator('')
+    setUserDenominator('')
     setFeedback('')
-    setDetailedExplanation('')
+    setSimplificationExplanation('')
     setShowAnswer(false)
   }
 
@@ -252,22 +214,39 @@ export default function PizzaFractionGame() {
   const checkAnswer = () => {
     if (!currentQuestion) return
 
+    const userAnswer: Fraction = {
+      numerator: parseInt(userNumerator) || 0,
+      denominator: parseInt(userDenominator) || 1
+    }
+
     const simplified = simplifyFraction(userAnswer)
     const correctAnswer = currentQuestion.answer
-    const explanation = generateExplanation(currentQuestion)
 
     if (simplified.numerator === correctAnswer.numerator && 
         simplified.denominator === correctAnswer.denominator) {
       setScore(score + 1)
       setFeedback('🎉 Perfetto! Ottima risposta!')
-      setDetailedExplanation(`✅ **Helemaal goed!**\n\n${explanation}`)
+      
+      // Generate simplification explanation if needed
+      const explanation = generateSimplificationExplanation(currentQuestion, userAnswer)
+      setSimplificationExplanation(explanation)
     } else {
-      setFeedback(`❌ Non è corretto. De juiste uitleg:`)
-      setDetailedExplanation(explanation)
+      setFeedback(`❌ Non è corretto. Het juiste antwoord is ${correctAnswer.numerator}/${correctAnswer.denominator}`)
+      
+      // Always show simplification explanation for wrong answers
+      const explanation = generateSimplificationExplanation(currentQuestion, userAnswer)
+      setSimplificationExplanation(explanation)
     }
     
     setTotalQuestions(totalQuestions + 1)
     setShowAnswer(true)
+  }
+
+  // Handle Enter key press
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !showAnswer && userNumerator && userDenominator) {
+      checkAnswer()
+    }
   }
 
   // Start game
@@ -384,51 +363,6 @@ export default function PizzaFractionGame() {
         </svg>
       )
     }
-  }
-
-  // Format explanation text with markdown-like styling
-  const formatExplanation = (text: string) => {
-    return text.split('\n').map((line, index) => {
-      if (line.startsWith('**') && line.endsWith('**')) {
-        return (
-          <div key={index} className="font-bold text-blue-800 mt-3 mb-1">
-            {line.replace(/\*\*/g, '')}
-          </div>
-        )
-      } else if (line.startsWith('💡')) {
-        return (
-          <div key={index} className="bg-yellow-100 border-l-4 border-yellow-500 p-2 my-2 text-yellow-800 italic">
-            {line}
-          </div>
-        )
-      } else if (line.startsWith('🎯')) {
-        return (
-          <div key={index} className="bg-green-100 border-l-4 border-green-500 p-2 my-2 text-green-800 font-semibold">
-            {line}
-          </div>
-        )
-      } else if (line.startsWith('🍕')) {
-        return (
-          <div key={index} className="bg-red-100 border-l-4 border-red-500 p-2 my-2 text-red-800">
-            {line}
-          </div>
-        )
-      } else if (line.startsWith('✅')) {
-        return (
-          <div key={index} className="bg-green-50 border border-green-200 rounded p-2 my-2 text-green-800 font-semibold">
-            {line}
-          </div>
-        )
-      } else if (line.trim() === '') {
-        return <div key={index} className="h-2"></div>
-      } else {
-        return (
-          <div key={index} className="text-gray-700 leading-relaxed">
-            {line}
-          </div>
-        )
-      }
-    })
   }
 
   if (!gameStarted) {
@@ -602,25 +536,33 @@ export default function PizzaFractionGame() {
         {/* Answer Input */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center space-x-4 bg-gray-50 rounded-lg p-4">
-            <label className="text-lg font-semibold text-gray-700">Jouw antwoord:</label>
+            <label className="text-lg font-semibold text-gray-700">Typ je antwoord:</label>
             <div className="flex items-center space-x-2">
               <input
                 type="number"
                 min="0"
-                value={userAnswer.numerator || ''}
-                onChange={(e) => setUserAnswer({...userAnswer, numerator: parseInt(e.target.value) || 0})}
-                className="w-16 p-2 border-2 border-gray-300 rounded text-center text-lg font-bold"
+                value={userNumerator}
+                onChange={(e) => setUserNumerator(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="0"
+                className="w-20 p-3 border-2 border-gray-300 rounded text-center text-xl font-bold focus:border-blue-500 focus:outline-none"
                 disabled={showAnswer}
+                autoFocus
               />
-              <span className="text-2xl text-gray-400">/</span>
+              <span className="text-3xl text-gray-400">/</span>
               <input
                 type="number"
                 min="1"
-                value={userAnswer.denominator || ''}
-                onChange={(e) => setUserAnswer({...userAnswer, denominator: parseInt(e.target.value) || 1})}
-                className="w-16 p-2 border-2 border-gray-300 rounded text-center text-lg font-bold"
+                value={userDenominator}
+                onChange={(e) => setUserDenominator(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="1"
+                className="w-20 p-3 border-2 border-gray-300 rounded text-center text-xl font-bold focus:border-blue-500 focus:outline-none"
                 disabled={showAnswer}
               />
+            </div>
+            <div className="text-sm text-gray-500">
+              (Druk Enter om te controleren)
             </div>
           </div>
         </div>
@@ -630,7 +572,7 @@ export default function PizzaFractionGame() {
           {!showAnswer ? (
             <button
               onClick={checkAnswer}
-              disabled={userAnswer.numerator === 0 || userAnswer.denominator === 0}
+              disabled={!userNumerator || !userDenominator}
               className="px-6 py-3 bg-green-600 text-white text-lg font-bold rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
             >
               🍕 Controleer Antwoord
@@ -664,15 +606,15 @@ export default function PizzaFractionGame() {
           </div>
         )}
 
-        {/* Detailed Explanation */}
-        {detailedExplanation && showAnswer && (
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-4">
-            <div className="text-blue-800 font-bold text-lg mb-4 flex items-center">
+        {/* Simplification Explanation (only when needed) */}
+        {simplificationExplanation && showAnswer && (
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-4">
+            <div className="text-blue-800 font-bold text-lg mb-2 flex items-center">
               <span className="text-2xl mr-2">🧮</span>
               Uitleg van Chef Mario
             </div>
-            <div className="text-left space-y-2">
-              {formatExplanation(detailedExplanation)}
+            <div className="text-blue-700 text-lg">
+              {simplificationExplanation}
             </div>
           </div>
         )}

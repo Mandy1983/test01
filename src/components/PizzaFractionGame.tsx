@@ -85,46 +85,79 @@ export default function PizzaFractionGame() {
     return simplifyFraction({ numerator, denominator })
   }
 
+  // Check if two fractions are equal
+  const fractionsEqual = (f1: Fraction, f2: Fraction): boolean => {
+    const s1 = simplifyFraction(f1)
+    const s2 = simplifyFraction(f2)
+    return s1.numerator === s2.numerator && s1.denominator === s2.denominator
+  }
+
   // Generate a new question
   const generateQuestion = (): Question => {
-    const operation = Math.random() > 0.5 ? '+' : '-'
-    let fraction1, fraction2
+    let attempts = 0
+    let question: Question
     
-    if (difficulty === 'easy') {
-      // Same denominators
-      const denominator = [2, 4, 8][Math.floor(Math.random() * 3)]
-      fraction1 = { numerator: 1, denominator }
-      fraction2 = { numerator: 1, denominator }
-    } else if (difficulty === 'medium') {
-      // Different denominators, but related
-      const pairs = [
-        [{ numerator: 1, denominator: 2 }, { numerator: 1, denominator: 4 }],
-        [{ numerator: 1, denominator: 3 }, { numerator: 1, denominator: 6 }],
-        [{ numerator: 1, denominator: 4 }, { numerator: 1, denominator: 8 }],
-        [{ numerator: 1, denominator: 5 }, { numerator: 1, denominator: 10 }]
-      ]
-      const pair = pairs[Math.floor(Math.random() * pairs.length)]
-      fraction1 = pair[0]
-      fraction2 = pair[1]
-    } else {
-      // Hard: any combination
-      fraction1 = fractions[Math.floor(Math.random() * fractions.length)]
-      fraction2 = fractions[Math.floor(Math.random() * fractions.length)]
-    }
-
-    // For subtraction, make sure result is positive
-    if (operation === '-') {
-      const result = subtractFractions(fraction1, fraction2)
-      if (result.numerator <= 0) {
-        [fraction1, fraction2] = [fraction2, fraction1]
+    do {
+      attempts++
+      const operation = Math.random() > 0.5 ? '+' : '-'
+      let fraction1, fraction2
+      
+      if (difficulty === 'easy') {
+        // Same denominators
+        const denominator = [2, 4, 8][Math.floor(Math.random() * 3)]
+        fraction1 = { numerator: 1, denominator }
+        fraction2 = { numerator: 1, denominator }
+      } else if (difficulty === 'medium') {
+        // Different denominators, but related
+        const pairs = [
+          [{ numerator: 1, denominator: 2 }, { numerator: 1, denominator: 4 }],
+          [{ numerator: 1, denominator: 3 }, { numerator: 1, denominator: 6 }],
+          [{ numerator: 1, denominator: 4 }, { numerator: 1, denominator: 8 }],
+          [{ numerator: 1, denominator: 5 }, { numerator: 1, denominator: 10 }]
+        ]
+        const pair = pairs[Math.floor(Math.random() * pairs.length)]
+        fraction1 = pair[0]
+        fraction2 = pair[1]
+        
+        // Sometimes swap them for variety
+        if (Math.random() > 0.5) {
+          [fraction1, fraction2] = [fraction2, fraction1]
+        }
+      } else {
+        // Hard: any combination
+        fraction1 = fractions[Math.floor(Math.random() * fractions.length)]
+        fraction2 = fractions[Math.floor(Math.random() * fractions.length)]
       }
-    }
 
-    const answer = operation === '+' 
-      ? addFractions(fraction1, fraction2)
-      : subtractFractions(fraction1, fraction2)
+      // For subtraction, make sure result is positive and not zero
+      if (operation === '-') {
+        const result = subtractFractions(fraction1, fraction2)
+        if (result.numerator <= 0) {
+          [fraction1, fraction2] = [fraction2, fraction1]
+        }
+      }
 
-    return { fraction1, fraction2, operation, answer }
+      const answer = operation === '+' 
+        ? addFractions(fraction1, fraction2)
+        : subtractFractions(fraction1, fraction2)
+
+      question = { fraction1, fraction2, operation, answer }
+      
+      // Check if answer is zero (which we want to avoid)
+      const isZeroAnswer = answer.numerator === 0
+      
+      // Check if it's the same fraction being subtracted (like 1/4 - 1/4)
+      const isSameFractionSubtraction = operation === '-' && 
+        fractionsEqual(fraction1, fraction2)
+      
+      // If it's a valid question (not zero answer and not same fraction subtraction), break
+      if (!isZeroAnswer && !isSameFractionSubtraction) {
+        break
+      }
+      
+    } while (attempts < 50) // Prevent infinite loop
+
+    return question
   }
 
   // Start new question
@@ -225,6 +258,52 @@ export default function PizzaFractionGame() {
     )
   }
 
+  // Pizza Icon Component for difficulty levels
+  const PizzaIcon = ({ type }: { type: 'slice' | 'half' | 'whole' }) => {
+    if (type === 'slice') {
+      return (
+        <svg width="40" height="40" viewBox="0 0 40 40" className="mx-auto">
+          {/* Pizza slice */}
+          <path d="M20 20 L35 10 A 20 20 0 0 1 35 30 Z" fill="#F4A460" stroke="#D2691E" strokeWidth="1"/>
+          <path d="M20 20 L35 10 A 20 20 0 0 1 35 30 Z" fill="#FF6347" opacity="0.7"/>
+          <circle cx="28" cy="20" r="1.5" fill="#FFFF99"/>
+          <circle cx="30" cy="25" r="1" fill="#90EE90"/>
+        </svg>
+      )
+    } else if (type === 'half') {
+      return (
+        <svg width="40" height="40" viewBox="0 0 40 40" className="mx-auto">
+          {/* Half pizza */}
+          <circle cx="20" cy="20" r="18" fill="#F4A460" stroke="#D2691E" strokeWidth="1"/>
+          <path d="M20 2 A 18 18 0 0 1 20 38 Z" fill="#FF6347" opacity="0.7"/>
+          <line x1="20" y1="2" x2="20" y2="38" stroke="#8B4513" strokeWidth="1"/>
+          <circle cx="26" cy="15" r="1.5" fill="#FFFF99"/>
+          <circle cx="28" cy="25" r="1" fill="#90EE90"/>
+          <circle cx="24" cy="30" r="1" fill="#FF69B4"/>
+        </svg>
+      )
+    } else {
+      return (
+        <svg width="40" height="40" viewBox="0 0 40 40" className="mx-auto">
+          {/* Whole pizza */}
+          <circle cx="20" cy="20" r="18" fill="#F4A460" stroke="#D2691E" strokeWidth="1"/>
+          <circle cx="20" cy="20" r="16" fill="#FF6347" opacity="0.7"/>
+          {/* Pizza lines */}
+          <line x1="20" y1="4" x2="20" y2="36" stroke="#8B4513" strokeWidth="1"/>
+          <line x1="4" y1="20" x2="36" y2="20" stroke="#8B4513" strokeWidth="1"/>
+          <line x1="7" y1="7" x2="33" y2="33" stroke="#8B4513" strokeWidth="1"/>
+          <line x1="33" y1="7" x2="7" y2="33" stroke="#8B4513" strokeWidth="1"/>
+          {/* Toppings */}
+          <circle cx="15" cy="12" r="1.5" fill="#FFFF99"/>
+          <circle cx="25" cy="15" r="1" fill="#90EE90"/>
+          <circle cx="28" cy="25" r="1.5" fill="#FF69B4"/>
+          <circle cx="12" cy="28" r="1" fill="#FFFF99"/>
+          <circle cx="20" cy="25" r="1" fill="#90EE90"/>
+        </svg>
+      )
+    }
+  }
+
   if (!gameStarted) {
     return (
       <div className="max-w-4xl mx-auto">
@@ -247,41 +326,50 @@ export default function PizzaFractionGame() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <button
                 onClick={() => setDifficulty('easy')}
-                className={`p-4 rounded-lg border-2 transition-all ${
+                className={`p-6 rounded-lg border-2 transition-all hover:scale-105 ${
                   difficulty === 'easy' 
-                    ? 'border-green-500 bg-green-50 text-green-700' 
-                    : 'border-gray-300 hover:border-green-300'
+                    ? 'border-green-500 bg-green-50 text-green-700 shadow-lg' 
+                    : 'border-gray-300 hover:border-green-300 hover:shadow-md'
                 }`}
               >
-                <div className="text-2xl mb-2">🟢</div>
-                <div className="font-semibold">Facile</div>
-                <div className="text-sm text-gray-600">Zelfde noemers</div>
+                <div className="mb-3">
+                  <PizzaIcon type="slice" />
+                </div>
+                <div className="font-bold text-lg">Gemakkelijk</div>
+                <div className="text-sm text-gray-600 mt-2">Zelfde noemers</div>
+                <div className="text-xs text-gray-500 mt-1">1/4 + 1/4, 1/8 + 1/8</div>
               </button>
               
               <button
                 onClick={() => setDifficulty('medium')}
-                className={`p-4 rounded-lg border-2 transition-all ${
+                className={`p-6 rounded-lg border-2 transition-all hover:scale-105 ${
                   difficulty === 'medium' 
-                    ? 'border-yellow-500 bg-yellow-50 text-yellow-700' 
-                    : 'border-gray-300 hover:border-yellow-300'
+                    ? 'border-yellow-500 bg-yellow-50 text-yellow-700 shadow-lg' 
+                    : 'border-gray-300 hover:border-yellow-300 hover:shadow-md'
                 }`}
               >
-                <div className="text-2xl mb-2">🟡</div>
-                <div className="font-semibold">Medio</div>
-                <div className="text-sm text-gray-600">Gerelateerde noemers</div>
+                <div className="mb-3">
+                  <PizzaIcon type="half" />
+                </div>
+                <div className="font-bold text-lg">Medium</div>
+                <div className="text-sm text-gray-600 mt-2">Gerelateerde noemers</div>
+                <div className="text-xs text-gray-500 mt-1">1/2 + 1/4, 1/5 + 1/10</div>
               </button>
               
               <button
                 onClick={() => setDifficulty('hard')}
-                className={`p-4 rounded-lg border-2 transition-all ${
+                className={`p-6 rounded-lg border-2 transition-all hover:scale-105 ${
                   difficulty === 'hard' 
-                    ? 'border-red-500 bg-red-50 text-red-700' 
-                    : 'border-gray-300 hover:border-red-300'
+                    ? 'border-red-500 bg-red-50 text-red-700 shadow-lg' 
+                    : 'border-gray-300 hover:border-red-300 hover:shadow-md'
                 }`}
               >
-                <div className="text-2xl mb-2">🔴</div>
-                <div className="font-semibold">Difficile</div>
-                <div className="text-sm text-gray-600">Alle combinaties</div>
+                <div className="mb-3">
+                  <PizzaIcon type="whole" />
+                </div>
+                <div className="font-bold text-lg">Moeilijk</div>
+                <div className="text-sm text-gray-600 mt-2">Alle combinaties</div>
+                <div className="text-xs text-gray-500 mt-1">1/3 + 1/8, 1/5 - 1/10</div>
               </button>
             </div>
           </div>
@@ -313,7 +401,17 @@ export default function PizzaFractionGame() {
             <div className="text-2xl">👨‍🍳</div>
             <div>
               <div className="text-lg font-semibold text-gray-700">Chef Mario's Score</div>
-              <div className="text-sm text-gray-500">Niveau: {difficulty === 'easy' ? 'Facile' : difficulty === 'medium' ? 'Medio' : 'Difficile'}</div>
+              <div className="text-sm text-gray-500 flex items-center space-x-2">
+                <span>Niveau:</span>
+                <div className="flex items-center space-x-1">
+                  {difficulty === 'easy' && <PizzaIcon type="slice" />}
+                  {difficulty === 'medium' && <PizzaIcon type="half" />}
+                  {difficulty === 'hard' && <PizzaIcon type="whole" />}
+                  <span className="ml-1">
+                    {difficulty === 'easy' ? 'Gemakkelijk' : difficulty === 'medium' ? 'Medium' : 'Moeilijk'}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
           <div className="text-right">
